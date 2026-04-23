@@ -352,6 +352,99 @@ class TestDialogAutoAdd:
         assert dialog.element.node in body._children
 
 
+class TestDialogAutoAddUiPropagation:
+    """Test that _ui is propagated in auto-add paths."""
+
+    def test_auto_add_propagates_ui_to_dialog(self):
+        """Auto-added dialog receives _ui from the tree."""
+        from pyxflow.components.notification import _set_current_tree
+        from pyxflow.core.component import UI
+        tree = StateTree()
+        ui = UI(tree)
+        tree.create_node()  # node 1 = body
+        tree.create_node()  # node 2 = container
+        tree._container_node_id = 2
+
+        dialog = Dialog()
+        assert dialog._ui is None
+
+        _set_current_tree(tree)
+        try:
+            dialog.open()
+        finally:
+            _set_current_tree(None)
+
+        assert dialog._ui is ui
+
+    def test_auto_add_propagates_ui_to_children(self):
+        """Children added to dialog before open() get _ui propagated."""
+        from pyxflow.components.notification import _set_current_tree
+        from pyxflow.core.component import UI
+        tree = StateTree()
+        ui = UI(tree)
+        tree.create_node()  # node 1 = body
+        tree.create_node()  # node 2 = container
+        tree._container_node_id = 2
+
+        dialog = Dialog()
+        child = Span("Hello")
+        dialog.add(child)
+
+        _set_current_tree(tree)
+        try:
+            dialog.open()
+        finally:
+            _set_current_tree(None)
+
+        assert child._ui is ui
+
+    def test_add_after_auto_open_propagates_ui(self):
+        """Children added after auto-add open() get _ui propagated."""
+        from pyxflow.components.notification import _set_current_tree
+        from pyxflow.core.component import UI
+        tree = StateTree()
+        ui = UI(tree)
+        tree.create_node()  # node 1 = body
+        tree.create_node()  # node 2 = container
+        tree._container_node_id = 2
+
+        dialog = Dialog()
+        _set_current_tree(tree)
+        try:
+            dialog.open()
+        finally:
+            _set_current_tree(None)
+
+        child = Button("OK")
+        dialog.add(child)
+        assert child._ui is ui
+
+    def test_header_footer_children_get_ui(self):
+        """Header/footer section children get _ui from dialog."""
+        from pyxflow.components.notification import _set_current_tree
+        from pyxflow.core.component import UI
+        tree = StateTree()
+        ui = UI(tree)
+        tree.create_node()  # node 1 = body
+        tree.create_node()  # node 2 = container
+        tree._container_node_id = 2
+
+        dialog = Dialog()
+        header_btn = Button("Close")
+        footer_btn = Button("OK")
+        dialog.get_header().add(header_btn)
+        dialog.get_footer().add(footer_btn)
+
+        _set_current_tree(tree)
+        try:
+            dialog.open()
+        finally:
+            _set_current_tree(None)
+
+        assert header_btn._ui is ui
+        assert footer_btn._ui is ui
+
+
 class TestDialogClientCloseRace:
     """Test the Dialog client close race condition fix.
 

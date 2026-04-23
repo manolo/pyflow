@@ -119,6 +119,7 @@ class Dialog(Component):
         # Attach children as regular children of the dialog element
         # (not virtual children - the renderer handles placing them in the overlay)
         for child in self._children:
+            child._ui = self._ui
             child._attach(tree)
             self.element.node.add_child(child.element.node)
 
@@ -163,6 +164,7 @@ class Dialog(Component):
         for component in components:
             self._children.append(component)
             if self._element:
+                component._ui = self._ui
                 component._attach(self._element._tree)
                 self.element.node.add_child(component.element.node)
                 self._update_virtual_child_node_ids()
@@ -193,6 +195,7 @@ class Dialog(Component):
             from pyxflow.components.notification import _get_current_tree
             tree = _get_current_tree()
             if tree:
+                self._ui = getattr(tree, '_ui', None)
                 self._attach(tree)
                 container = tree.get_node(tree._container_node_id)
                 if container:

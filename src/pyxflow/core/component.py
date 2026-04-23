@@ -706,6 +706,7 @@ class UI:
 
     def __init__(self, tree: "StateTree"):
         self._tree = tree
+        tree._ui = self  # Back-reference so auto-add paths can find the UI
         self._root: Component | None = None
         self._theme: str = "lumo"
         self._variant: str = "light"

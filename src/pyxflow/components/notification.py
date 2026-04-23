@@ -181,6 +181,7 @@ class Notification(Component):
             # Auto-attach using current tree context
             tree = _get_current_tree()
             if tree:
+                self._ui = getattr(tree, '_ui', None)
                 self._pending_server_change = True
                 self._attach(tree)
                 # Add to body node (node 1) so client can render it.

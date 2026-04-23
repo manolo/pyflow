@@ -93,6 +93,7 @@ class ConfirmDialog(Component):
             from pyxflow.components.notification import _get_current_tree
             tree = _get_current_tree()
             if tree:
+                self._ui = getattr(tree, '_ui', None)
                 self._attach(tree)
                 container = tree.get_node(tree._container_node_id)
                 if container:

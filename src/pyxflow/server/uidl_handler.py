@@ -1121,7 +1121,8 @@ class UidlHandler:
         # Security: check component is attached to UI
         if component._ui is None:
             log.warning("publishedEventHandler blocked: component not attached "
-                        "to UI (node %d)", node_id)
+                        "to UI (node %d, method=%s, component=%s)",
+                        node_id, method_name, type(component).__name__)
             return
 
         # Convert camelCase to snake_case for Python method lookup
