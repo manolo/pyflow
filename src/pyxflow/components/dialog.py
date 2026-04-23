@@ -86,6 +86,7 @@ class Dialog(Component):
         self._open_listeners: list[Callable] = []
         self._close_listeners: list[Callable] = []
         self._auto_added = False
+        self._close_pending = False
 
     def _attach(self, tree: "StateTree"):
         super()._attach(tree)
@@ -186,6 +187,7 @@ class Dialog(Component):
         from the UI when closed.
         """
         self._opened = True
+        self._close_pending = False
         if not self._element:
             # Auto-attach to UI container (same as Java's OverlayAutoAddController)
             from pyxflow.components.notification import _get_current_tree
@@ -215,6 +217,7 @@ class Dialog(Component):
         automatically removed from the UI when closed.
         """
         self._opened = False
+        self._close_pending = False
         if self._element:
             self._pending_server_change = True
             self.element.set_property("opened", False)
@@ -357,25 +360,13 @@ class Dialog(Component):
         """Handle opened-changed event from client.
 
         Absorbs echoes from server-initiated open/close calls.
-        The actual close detection is handled by handleClientClose
+        Client-initiated close is handled entirely by handle_client_close
         (publishedEventHandler from the overlay's close event).
+        We must NOT call _auto_remove() here because handle_client_close
+        arrives later in the same RPC batch and needs the node attached.
         """
         if self._pending_server_change:
             self._pending_server_change = False
-            return
-
-        # Fallback: if opened-changed arrives without a pending server change
-        # and we were open, treat it as a close (shouldn't happen with
-        # publishedEventHandler, but handles edge cases).
-        was_opened = self._opened
-        self._opened = False
-        if was_opened and self._element:
-            self._pending_server_change = True
-            self.element.set_property("opened", False)
-            self._auto_remove()
-        if was_opened:
-            for listener in self._close_listeners:
-                listener(event_data)
 
     def _auto_remove(self):
         """Remove auto-added dialog from container (matching Java's OverlayAutoAddController)."""
@@ -387,12 +378,22 @@ class Dialog(Component):
 
         This is triggered by the overlay's vaadin-overlay-close event
         via $server.handleClientClose() (publishedEventHandler RPC).
-        The server sets opened=false and sends the change back to the
-        client, keeping both state trees synchronized.
+
+        Due to two-pass RPC processing, mSync may have already set
+        _opened=False before this method runs. The _close_pending flag
+        tracks that case so we still run the full close sequence
+        (auto-remove + listeners).
         """
-        if not self._opened:
+        if not self._close_pending and not self._opened:
             return
-        self.close()
+        needs_property_update = self._opened
+        self._close_pending = False
+        self._opened = False
+        if self._element:
+            if needs_property_update:
+                self._pending_server_change = True
+                self.element.set_property("opened", False)
+            self._auto_remove()
         for listener in self._close_listeners:
             listener({})
 
@@ -454,4 +455,6 @@ class Dialog(Component):
     def _sync_property(self, name: str, value):
         """Handle property sync from client."""
         if name == "opened":
+            if self._opened and not value:
+                self._close_pending = True
             self._opened = value

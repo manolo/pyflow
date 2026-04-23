@@ -205,8 +205,8 @@ class TestDialog:
 
         dialog.add_close_listener(on_close)
 
-        # Simulate user closing the dialog (client sends opened-changed with empty data)
-        dialog._handle_opened_changed({})
+        # Simulate user closing the dialog (client sends handleClientClose RPC)
+        dialog.handle_client_close()
 
         assert len(events_received) == 1
         assert events_received[0][0] == "close"
@@ -350,6 +350,138 @@ class TestDialogAutoAdd:
         dialog.close()
         # Should still be a child (not auto-removed)
         assert dialog.element.node in body._children
+
+
+class TestDialogClientCloseRace:
+    """Test the Dialog client close race condition fix.
+
+    When the client closes a dialog (ESC or click outside), the RPC batch
+    contains both opened-changed event and handleClientClose publishedEventHandler.
+    Due to two-pass processing (mSync first, then events/published), the node
+    must remain attached when handleClientClose runs.
+    """
+
+    @pytest.fixture
+    def tree(self):
+        return StateTree()
+
+    def _setup_auto_dialog(self, tree):
+        """Create and open an auto-added dialog."""
+        from pyxflow.components.notification import _set_current_tree
+        tree.create_node()  # node 1 = body
+        tree.create_node()  # node 2 = container
+        tree._container_node_id = 2
+
+        dialog = Dialog()
+        dialog.add(Span("Hello"))
+        _set_current_tree(tree)
+        dialog.open()
+        _set_current_tree(None)
+        tree.collect_changes()
+        return dialog
+
+    def test_handle_client_close_without_msync(self, tree):
+        """handleClientClose works when no mSync precedes it."""
+        dialog = self._setup_auto_dialog(tree)
+        events = []
+        dialog.add_close_listener(lambda e: events.append("close"))
+
+        # Simulate client close: opened-changed event, then handleClientClose
+        dialog._handle_opened_changed({})
+        dialog.handle_client_close()
+
+        assert not dialog.is_opened()
+        assert len(events) == 1
+        # Node should be auto-removed
+        container = tree.get_node(2)
+        assert dialog.element.node not in container._children
+
+    def test_handle_client_close_with_msync_first(self, tree):
+        """handleClientClose works when mSync already set opened=False."""
+        dialog = self._setup_auto_dialog(tree)
+        events = []
+        dialog.add_close_listener(lambda e: events.append("close"))
+
+        # Simulate two-pass: mSync sets opened=false (pass 1)
+        dialog._sync_property("opened", False)
+        assert dialog._close_pending is True
+        # Then opened-changed event (pass 2)
+        dialog._handle_opened_changed({})
+        # Then handleClientClose (pass 2)
+        dialog.handle_client_close()
+
+        assert not dialog.is_opened()
+        assert len(events) == 1
+        # Node should be auto-removed
+        container = tree.get_node(2)
+        assert dialog.element.node not in container._children
+
+    def test_node_stays_attached_for_handle_client_close(self, tree):
+        """The node must remain attached when handleClientClose processes."""
+        dialog = self._setup_auto_dialog(tree)
+        container = tree.get_node(2)
+
+        # After opened-changed, node should still be in the tree
+        dialog._handle_opened_changed({})
+        assert dialog.element.node in container._children
+        assert dialog.element.node.is_attached
+
+        # handleClientClose can run successfully
+        dialog.handle_client_close()
+        assert dialog.element.node not in container._children
+
+    def test_server_close_echo_ignored(self, tree):
+        """Server-initiated close followed by client echo does not double-fire."""
+        dialog = self._setup_auto_dialog(tree)
+        events = []
+        dialog.add_close_listener(lambda e: events.append("close"))
+
+        # Server closes
+        dialog.close()
+        assert len(events) == 0  # close() doesn't fire close listeners
+
+        # Client echo: mSync + opened-changed + handleClientClose
+        dialog._sync_property("opened", False)
+        dialog._handle_opened_changed({})  # absorbed by _pending_server_change
+        dialog.handle_client_close()
+
+        # No additional close listener calls
+        assert len(events) == 0
+
+    def test_reopen_after_client_close(self, tree):
+        """Dialog can be reopened after client-initiated close."""
+        from pyxflow.components.notification import _set_current_tree
+        dialog = self._setup_auto_dialog(tree)
+        container = tree.get_node(2)
+
+        # Client close
+        dialog.handle_client_close()
+        assert not dialog.is_opened()
+        assert dialog.element.node not in container._children
+
+        # Reopen
+        _set_current_tree(tree)
+        dialog.open()
+        _set_current_tree(None)
+        assert dialog.is_opened()
+        assert dialog._close_pending is False
+        assert dialog.element.node in container._children
+
+    def test_close_pending_reset_on_open(self, tree):
+        """_close_pending is reset when dialog reopens."""
+        dialog = self._setup_auto_dialog(tree)
+        from pyxflow.components.notification import _set_current_tree
+
+        # mSync sets close_pending
+        dialog._sync_property("opened", False)
+        assert dialog._close_pending is True
+
+        # But then server reopens before handleClientClose arrives
+        _set_current_tree(tree)
+        dialog.open()
+        _set_current_tree(None)
+        assert dialog._close_pending is False
+        assert dialog.is_opened()
 
 
 class TestDialogResizeListener:

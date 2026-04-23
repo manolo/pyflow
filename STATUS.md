@@ -5,9 +5,9 @@
 **Vaadin version:** 25.0.6
 **Components:** 50+ implemented (all Vaadin 25 UI components)
 **Lines of code:** ~19,700 (core src/), ~58,000 (total with demo + tests)
-**Test structure:** `tests/unit/` (2626 unit tests, default `pytest`) + `tests/ui/` (465 Playwright, run explicitly)
-**Tests:** 2626 unit + 465 UI (Playwright)
-**Last updated:** 2026-03-19
+**Test structure:** `tests/unit/` (2632 unit tests, default `pytest`) + `tests/ui/` (465 Playwright, run explicitly)
+**Tests:** 2632 unit + 465 UI (Playwright)
+**Last updated:** 2026-04-23
 
 ---
 
@@ -171,6 +171,7 @@
 - [x] **DisabledUpdateMode** — `ALWAYS` vs `ONLY_WHEN_ENABLED` per property/method. Dialog `opened`, LoginForm `disabled` sync even when disabled (matching Java Flow's `DisabledUpdateMode` enum)
 - [x] **publishedEventHandler security** — Method registration check (Feature 19), argument count validation, UI attachment check, disabled bypass (matching Java Flow's `PublishedServerEventHandlerRpcHandler`)
 - [x] **XSS response wrapping** — `for(;;);[{...}]` prefix on UIDL responses
+- [x] **Dialog close race condition fix** — `_handle_opened_changed` no longer calls `_auto_remove()`; `handle_client_close` is the sole client close handler with `_close_pending` flag for two-pass RPC safety
 
 ### Theme
 - [x] Lumo/Aura theme support — `@StyleSheet("lumo/lumo.css")` or `@StyleSheet("aura/aura.css")` on layout
