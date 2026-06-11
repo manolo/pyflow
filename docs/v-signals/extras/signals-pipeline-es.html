@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline de Signals</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#diagram{width:960px;height:460px;position:relative}
+
+/* Boxes */
+.box{position:absolute;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .5s ease;opacity:0;transform:translateY(20px) scale(.95);padding:20px 18px}
+.box.show{opacity:1;transform:translateY(0) scale(1)}
+.box.pulse{animation:pulse 1.8s ease}
+@keyframes pulse{
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(0) scale(1.06)}
+}
+.box h3{font-size:14px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px}
+.box .subtitle{font-size:11px;opacity:.55;margin-bottom:10px;text-align:center}
+.box .body{font-family:'SF Mono',monospace;font-size:13px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 14px;min-width:170px;text-align:center}
+.box .body .val{font-size:22px;font-weight:700;display:block;margin-top:4px}
+
+#sig{left:60px;top:140px;width:230px;background:rgba(96,165,250,.08);border:1.5px solid rgba(96,165,250,.35)}
+#sig h3{color:#60a5fa}
+#sig .body{border-color:rgba(96,165,250,.3)}
+#sig .body .val{color:#60a5fa}
+
+#comp{left:365px;top:140px;width:230px;background:rgba(251,191,36,.08);border:1.5px solid rgba(251,191,36,.35)}
+#comp h3{color:#fbbf24}
+#comp .body{border-color:rgba(251,191,36,.3)}
+#comp .body .val{color:#fbbf24}
+
+#eff{left:670px;top:140px;width:230px;background:rgba(52,211,153,.08);border:1.5px solid rgba(52,211,153,.35)}
+#eff h3{color:#34d399}
+#eff .body{border-color:rgba(52,211,153,.3)}
+#eff .body .val{color:#34d399;font-size:14px;font-family:'SF Mono',monospace}
+
+/* Button visualization */
+#btn-vis{position:absolute;left:130px;top:50px;background:rgba(96,165,250,.15);border:1.5px solid rgba(96,165,250,.5);color:#60a5fa;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;opacity:0;transition:all .4s;display:flex;align-items:center;gap:8px}
+#btn-vis.show{opacity:1}
+#btn-vis.click{transform:scale(.92);background:rgba(96,165,250,.3)}
+
+/* DOM visualization on the right */
+#dom-vis{position:absolute;right:30px;top:30px;width:280px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.2);border-radius:8px;padding:12px;opacity:0;transition:all .4s;font-family:'SF Mono',monospace;font-size:11px;color:#94a3b8;text-align:left;white-space:nowrap}
+#dom-vis.show{opacity:1}
+#dom-vis .dom-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:6px}
+#dom-vis .dom-content{color:#e2e8f0;font-size:14px}
+#dom-vis.update{animation:flash 1.5s ease}
+@keyframes flash{
+  0%,100%{background:rgba(255,255,255,.03)}
+  50%{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.5)}
+}
+
+/* Arrows */
+.arrow{position:absolute;opacity:0;transition:opacity .5s}
+.arrow.show{opacity:1}
+#a1{left:285px;top:215px;width:85px;height:30px}
+#a2{left:590px;top:215px;width:85px;height:30px}
+
+/* Packet animation */
+@keyframes packetFly1{
+  0%{left:285px;opacity:0}
+  10%{opacity:1}
+  80%{left:365px;opacity:1}
+  100%{left:365px;opacity:0}
+}
+@keyframes packetFly2{
+  0%{left:590px;opacity:0}
+  10%{opacity:1}
+  80%{left:670px;opacity:1}
+  100%{left:670px;opacity:0}
+}
+.packet{position:absolute;width:12px;height:12px;border-radius:50%;top:220px;opacity:0}
+.packet.p1{background:#60a5fa;box-shadow:0 0 14px rgba(96,165,250,.7);animation:packetFly1 2.4s ease-in-out forwards}
+.packet.p2{background:#fbbf24;box-shadow:0 0 14px rgba(251,191,36,.7);animation:packetFly2 2.4s ease-in-out forwards;animation-delay:2.1s}
+.packet.p3{background:#34d399;box-shadow:0 0 14px rgba(52,211,153,.7);animation:packetFly3 1.8s ease-in-out forwards}
+@keyframes packetFly3{
+  0%{left:785px;top:140px;opacity:0}
+  15%{opacity:1}
+  80%{left:785px;top:95px;opacity:1}
+  100%{left:785px;top:95px;opacity:0}
+}
+
+/* Caption */
+#caption{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);font-size:17px;line-height:1.4;color:rgba(255,255,255,.7);text-align:center;min-width:640px;max-width:90vw;transition:opacity .4s}
+#caption b{color:#e2e8f0}
+
+/* Step dots */
+#steps{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:100}
+.step-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .3s}
+.step-dot.active{background:#60a5fa;box-shadow:0 0 8px rgba(96,165,250,.5)}
+.step-dot.done{background:rgba(96,165,250,.4)}
+
+/* Next button */
+#next-btn{position:fixed;bottom:10px;right:12px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.3);color:#60a5fa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px;font-weight:600;z-index:100;transition:all .2s}
+#next-btn:hover{background:rgba(96,165,250,.25);color:#fff}
+</style>
+</head>
+<body>
+<div id="diagram">
+  <!-- Button visualization -->
+  <div id="btn-vis">
+    <span style="font-size:16px">+</span>
+    <span>incrementar()</span>
+  </div>
+
+  <!-- DOM visualization -->
+  <div id="dom-vis">
+    <div class="dom-label">&lt;span&gt; en el DOM</div>
+    <div class="dom-content" id="dom-text">Cuenta: 0 (doble: 0)</div>
+  </div>
+
+  <!-- Signal box -->
+  <div class="box" id="sig">
+    <h3>signal</h3>
+    <div class="subtitle">valor reactivo</div>
+    <div class="body">count<span class="val" id="sig-val">0</span></div>
+  </div>
+
+  <!-- Computed box -->
+  <div class="box" id="comp">
+    <h3>computed</h3>
+    <div class="subtitle">derivado &middot; perezoso &middot; cacheado</div>
+    <div class="body">count * 2<span class="val" id="comp-val">0</span></div>
+  </div>
+
+  <!-- Effect box -->
+  <div class="box" id="eff">
+    <h3>effect</h3>
+    <div class="subtitle">efecto secundario</div>
+    <div class="body"><span class="val">renderiza DOM</span></div>
+  </div>
+
+  <!-- Arrows -->
+  <svg class="arrow" id="a1" viewBox="0 0 85 30">
+    <defs><marker id="ah1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#60a5fa"/></marker></defs>
+    <line x1="78" y1="15" x2="5" y2="15" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#ah1)"/>
+    <text x="42" y="9" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">depende de</text>
+  </svg>
+  <svg class="arrow" id="a2" viewBox="0 0 85 30">
+    <defs><marker id="ah2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/></marker></defs>
+    <line x1="78" y1="15" x2="5" y2="15" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#ah2)"/>
+    <text x="42" y="9" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">depende de</text>
+  </svg>
+</div>
+
+<div id="steps"></div>
+<button id="next-btn">Siguiente &rarr;</button>
+<div id="caption"></div>
+
+<script>
+var steps = [
+  {
+    caption: "Una <b>signal</b> guarda un valor reactivo. Léela, escríbela. Cuando cambia, los dependientes son notificados.",
+    show: ['sig']
+  },
+  {
+    caption: "Un <b>computed</b> deriva un valor nuevo a partir de otras signals. Perezoso y cacheado &rarr; se recalcula sólo cuando hace falta.",
+    show: ['comp'],
+    arrows: ['a1']
+  },
+  {
+    caption: "Un <b>effect</b> ejecuta efectos secundarios (DOM, red, logs) cuando cambian sus signals dependientes.",
+    show: ['eff','dom-vis'],
+    arrows: ['a2']
+  },
+  {
+    caption: "Pulsa el botón: <b>la signal cambia</b> &rarr; computed recalcula &rarr; effect re-renderiza el DOM. Un solo push.",
+    show: ['btn-vis'],
+    increment: true
+  },
+  {
+    caption: "<b>Garantía sin glitches:</b> cada suscriptor se ejecuta <em>exactamente una vez</em>, por muchas signals dependientes que haya.",
+    highlight: true
+  }
+];
+
+var current = -1;
+var sigValue = 0;
+var dotsEl = document.getElementById('steps');
+var captionEl = document.getElementById('caption');
+
+steps.forEach(function(){
+  var d = document.createElement('div');
+  d.className = 'step-dot';
+  dotsEl.appendChild(d);
+});
+
+function updateDom() {
+  document.getElementById('sig-val').textContent = sigValue;
+  document.getElementById('comp-val').textContent = sigValue * 2;
+  document.getElementById('dom-text').textContent = 'Cuenta: ' + sigValue + ' (doble: ' + (sigValue * 2) + ')';
+}
+
+function firePackets() {
+  var diagram = document.getElementById('diagram');
+  var p1 = document.createElement('div');
+  p1.className = 'packet p1';
+  diagram.appendChild(p1);
+  var p2 = document.createElement('div');
+  p2.className = 'packet p2';
+  diagram.appendChild(p2);
+  setTimeout(function(){
+    document.getElementById('sig').classList.add('pulse');
+    setTimeout(function(){ document.getElementById('sig').classList.remove('pulse'); }, 1800);
+  }, 50);
+  setTimeout(function(){
+    document.getElementById('comp').classList.add('pulse');
+    setTimeout(function(){ document.getElementById('comp').classList.remove('pulse'); }, 1800);
+  }, 2100);
+  setTimeout(function(){
+    document.getElementById('eff').classList.add('pulse');
+    var p3 = document.createElement('div');
+    p3.className = 'packet p3';
+    diagram.appendChild(p3);
+    // DOM flashes when p3 reaches dom-vis (80% of 1.8s = 1440ms)
+    setTimeout(function(){
+      document.getElementById('dom-vis').classList.add('update');
+    }, 1440);
+    setTimeout(function(){
+      document.getElementById('eff').classList.remove('pulse');
+      document.getElementById('dom-vis').classList.remove('update');
+      p3.remove();
+    }, 2940);
+  }, 4200);
+  setTimeout(function(){ p1.remove(); p2.remove(); }, 7500);
+}
+
+function advance() {
+  current++;
+  if (current >= steps.length) { current = steps.length - 1; return; }
+  var s = steps[current];
+
+  dotsEl.querySelectorAll('.step-dot').forEach(function(d,i){
+    d.className = 'step-dot' + (i < current ? ' done' : '') + (i === current ? ' active' : '');
+  });
+
+  captionEl.innerHTML = s.caption;
+
+  if (s.show) s.show.forEach(function(id){ document.getElementById(id).classList.add('show'); });
+  if (s.arrows) s.arrows.forEach(function(id){ document.getElementById(id).classList.add('show'); });
+
+  if (s.increment) {
+    document.getElementById('btn-vis').classList.add('click');
+    setTimeout(function(){
+      document.getElementById('btn-vis').classList.remove('click');
+      sigValue++;
+      updateDom();
+      firePackets();
+    }, 300);
+  }
+
+  if (s.highlight) {
+    ['sig','comp','eff'].forEach(function(id){
+      var el = document.getElementById(id);
+      el.style.transition = 'all .4s';
+      el.style.boxShadow = '0 0 24px rgba(52,211,153,.4)';
+      el.style.borderColor = 'rgba(52,211,153,.6)';
+    });
+  }
+
+  if (current >= steps.length - 1) {
+    document.getElementById('next-btn').style.opacity = '.3';
+  }
+}
+
+document.getElementById('next-btn').addEventListener('click', advance);
+document.addEventListener('keydown', function(e){
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); advance(); }
+});
+
+setTimeout(advance, 300);
+</script>
+</body>
+</html>

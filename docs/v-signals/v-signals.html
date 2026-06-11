@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vaadin Signals: Reactive UIs for Java</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/black.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/monokai.css">
+  <style>
+    /* --- Base theme (matching v-flow / v-learn) --- */
+    .reveal {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e6edf3;
+      font-size: 32px;
+    }
+    .reveal h1, .reveal h2 { color: #fff; text-transform: none; }
+    .reveal h3 { color: #00d2ff; text-transform: none; }
+    .reveal code { color: #a5d6ff; }
+    .reveal a { color: #00d2ff; }
+
+    /* --- Gradient text --- */
+    .gradient-text {
+      background: linear-gradient(135deg, #fff, #1676f3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .signal-text {
+      background: linear-gradient(135deg, #60a5fa, #fbbf24, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* --- Cards --- */
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 1.2em;
+      border: 1px solid rgba(255,255,255,0.1);
+      text-align: left;
+      backdrop-filter: blur(4px);
+    }
+    .card h3 { margin-top: 0; font-size: 0.85em; }
+    .card p { font-size: 0.6em; color: #8899aa; margin: 0; }
+
+    /* --- Grids --- */
+    .three-cards { display: flex; gap: 1.2em; }
+    .three-cards > .card { flex: 1; }
+    .two-columns { display: flex; gap: 2em; align-items: center; }
+    .two-columns > div { flex: 1; }
+
+    .dx-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1em;
+      margin-top: 0.8em;
+    }
+    .dx-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 1em 1.2em;
+      text-align: left;
+      transition: transform 0.3s, border-color 0.3s;
+    }
+    .dx-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(22,118,243,0.4);
+    }
+    .dx-card .dx-icon { font-size: 1.4em; margin-bottom: 0.3em; display: block; }
+    .dx-card strong { color: #00d2ff; font-size: 0.75em; display: block; margin-bottom: 0.2em; }
+    .dx-card span { font-size: 0.55em; color: #8899aa; display: block; }
+
+    /* --- Code blocks --- */
+    .reveal pre {
+      width: 100%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      border-radius: 8px;
+      margin: 0.3em 0;
+      padding: 0;
+    }
+    .reveal pre code {
+      font-size: 0.7em;
+      line-height: 1.5;
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      padding: 1em;
+    }
+
+    /* --- Quotes --- */
+    .reveal blockquote {
+      background: rgba(255,255,255,0.03);
+      border-left: 4px solid #1676f3;
+      padding: 0.6em 1.2em;
+      font-style: italic;
+      color: #8899aa;
+      width: 90%;
+      text-align: left;
+      font-size: 0.85em;
+    }
+
+    /* --- Images --- */
+    .reveal img { border: none; box-shadow: 0 4px 30px rgba(0,0,0,0.4); border-radius: 8px; }
+    .reveal img.no-shadow { box-shadow: none; }
+
+    /* --- Lists --- */
+    .reveal ul { list-style: none; padding-left: 0; }
+    .reveal ul li { padding: 0.25em 0; font-size: 0.85em; }
+    .reveal ul li::before { content: "\25B8  "; color: #1676f3; }
+
+    /* --- Section divider --- */
+    .section-divider {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    .section-number {
+      position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 12em;
+      font-weight: 900;
+      opacity: 0.12;
+      color: #00d2ff;
+      z-index: 0;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .section-divider h2, .section-divider blockquote {
+      position: relative;
+      z-index: 1;
+    }
+    .video-slide { position: relative; }
+    .video-slide h2, .video-slide .video-wrap, .video-slide .caption { position: relative; z-index: 1; }
+
+    /* --- Caption --- */
+    .caption { font-style: italic; color: #8899aa; font-size: 0.7em; margin-top: 1.2em; }
+    .reveal .slide-number { background: transparent; color: #8899aa; font-size: 24px; }
+
+    /* --- Progress bar --- */
+    .talk-progress {
+      position: fixed;
+      bottom: 3px; left: 0; right: 0; z-index: 40;
+      height: 32px;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+    }
+    .tp-seg {
+      position: absolute; bottom: 0; box-sizing: border-box;
+      display: flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 8px;
+      border-left: solid 1px #1e90ff7a;
+      visibility: hidden; transition: all 0.5s;
+    }
+    .tp-seg[data-part="1"] { left: 10%; width: 25%; }
+    .tp-seg[data-part="2"] { left: 35%; width: 30%; }
+    .tp-seg[data-part="3"] { left: 65%; width: 25%; }
+    .tp-seg[data-part="4"] { left: 90%; width: 7%; }
+    .tp-seg .tp-num {
+      font-size: 14px; font-weight: 700;
+      color: rgba(255,255,255,0.12); transition: color 0.5s, text-shadow 0.5s;
+    }
+    .tp-seg .tp-label {
+      font-size: 14px; font-weight: 500;
+      color: rgba(255,255,255,0.1); letter-spacing: 0.2px;
+      white-space: nowrap; transition: color 0.5s;
+    }
+    .tp-seg.lit { visibility: visible; }
+    .tp-seg.lit .tp-num { color: rgba(0,210,255,0.35); }
+    .tp-seg.lit .tp-label { color: rgba(0,210,255,0.3); }
+    .tp-seg.lit.current .tp-num { color: #00d2ff; text-shadow: 0 0 10px rgba(0,210,255,0.4); }
+    .tp-seg.lit.current .tp-label { color: rgba(0,210,255,0.7); }
+
+    /* --- Timeline --- */
+    .timeline {
+      display: flex;
+      gap: 0.5em;
+      margin-top: 1em;
+      align-items: stretch;
+    }
+    .tl-item {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 0.8em 0.5em;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    .tl-item:hover {
+      transform: translateY(-3px);
+      border-color: rgba(0,210,255,0.4);
+    }
+    .tl-year {
+      font-size: 0.7em;
+      color: #00d2ff;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 0.2em;
+    }
+    .tl-name {
+      font-size: 0.55em;
+      color: #e6edf3;
+      font-weight: 600;
+      display: block;
+    }
+    .tl-note {
+      font-size: 0.4em;
+      color: #8899aa;
+      margin-top: 0.3em;
+      display: block;
+    }
+
+    /* --- Before / After code --- */
+    .before-after { display: flex; gap: 1em; align-items: stretch; }
+    .before-after > div { display: flex; flex-direction: column; }
+    .before-after .ba-bad { flex: 1.4; }
+    .before-after .ba-good { flex: 1; }
+    .before-after h3 { font-size: 0.65em; margin-bottom: 0.3em; }
+    .before-after pre code { font-size: 0.65em; line-height: 1.15; padding: 0.6em; }
+    .ba-bad h3 { color: #f87171; }
+    .ba-good h3 { color: #34d399; }
+    .ba-bad pre { border-left: 3px solid rgba(248,113,113,0.6); }
+    .ba-good pre { border-left: 3px solid rgba(52,211,153,0.6); }
+
+    /* --- Video slide --- */
+    .video-slide h2 { margin-bottom: 0.3em; }
+    .video-slide .video-wrap {
+      display: flex;
+      justify-content: center;
+    }
+    /* Slide is 700px tall - title (~80) + caption (~40) + margin = leave ~540 for video */
+    .video-slide video {
+      max-height: 540px;
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+      background: #000;
+      object-fit: contain;
+    }
+    .video-slide .caption { margin-top: 0.3em; }
+
+    /* --- Screenshot strip --- */
+    .screenshot-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1em;
+      margin-top: 0.5em;
+    }
+    .screenshot-strip figure { margin: 0; text-align: center; }
+    .screenshot-strip img {
+      width: 100%;
+      max-height: 380px;
+      object-fit: contain;
+      background: #0d1117;
+    }
+    .screenshot-strip figcaption {
+      font-size: 0.5em;
+      color: #8899aa;
+      margin-top: 0.4em;
+      font-style: italic;
+    }
+
+    /* --- Primitive badge --- */
+    .prim-badge {
+      display: inline-block;
+      padding: 0.15em 0.6em;
+      border-radius: 6px;
+      font-family: 'SF Mono', monospace;
+      font-size: 0.85em;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+    }
+    .prim-signal { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.4); }
+    .prim-computed { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
+    .prim-effect { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.4); }
+
+    /* --- Slide background rotation --- */
+    .slide-background.bg-rotated .slide-background-content {
+      transform: rotate(-4deg) scale(1.15);
+    }
+
+    /* --- Multi-user diagram --- */
+    .multi-user {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1em;
+      margin: 0.8em 0;
+    }
+    .mu-browser {
+      background: rgba(96,165,250,0.08);
+      border: 1.5px solid rgba(96,165,250,0.3);
+      border-radius: 10px;
+      padding: 0.6em 1em;
+      font-size: 0.55em;
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .mu-server {
+      background: rgba(52,211,153,0.08);
+      border: 1.5px solid rgba(52,211,153,0.4);
+      border-radius: 10px;
+      padding: 0.8em 1.2em;
+      font-size: 0.6em;
+      color: #34d399;
+      font-weight: 700;
+      text-align: center;
+    }
+    .mu-arrow { color: #fbbf24; font-size: 1.2em; }
+
+    @media print {
+      .talk-progress { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Progress bar -->
+  <div class="talk-progress" id="talk-progress">
+    <div class="tp-seg" data-part="1"><span class="tp-num">1</span><span class="tp-label">Why signals?</span></div>
+    <div class="tp-seg" data-part="2"><span class="tp-num">2</span><span class="tp-label">Three primitives</span></div>
+    <div class="tp-seg" data-part="3"><span class="tp-num">3</span><span class="tp-label">Vaadin's solution</span></div>
+    <div class="tp-seg" data-part="4"><span class="tp-num">4</span><span class="tp-label">Video</span></div>
+  </div>
+
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- =========================================================== -->
+      <!-- SLIDE 1: Title                                              -->
+      <!-- =========================================================== -->
+      <section class="bg-rotated"
+               data-background-image="images/background-code.png"
+               data-background-opacity="0.08"
+               data-background-size="cover">
+        <h1 style="font-size: 1.4em;">Vaadin <span class="signal-text">Signals</span></h1>
+        <p style="font-size: 0.85em; color: #8899aa; margin-top: 0.3em;">Reactive UIs for Java</p>
+        <p style="font-size: 0.55em; color: #555; margin-top: 1.5em;">
+          <code>signal</code> &middot; <code>computed</code> &middot; <code>effect</code>
+        </p>
+        <aside class="notes">
+          <p>We all know signals from the JS world: SolidJS, Preact, Angular.</p>
+          <p>Now Vaadin brings the same model to server-side Java.</p>
+          <p>Today we'll see why this matters and what's different.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 2: Hook -->
+      <section>
+        <h2>The <span class="gradient-text">tangle</span></h2>
+        <blockquote style="margin: 0.5em auto;">
+          &middot; State management can get out of control.<br/>
+          &middot; A simple form with a few listeners can become a tangled mess of components updating each other: you need a notepad just to keep track of what updates what.
+        </blockquote>
+        <div class="three-cards" style="margin-top: 0.8em;">
+          <div class="card fragment">
+            <h3 style="color:#f87171;">Listener chains</h3>
+            <p>Each field manually wires a <code>Listener</code> to everything that depends on its value.</p>
+          </div>
+          <div class="card fragment">
+            <h3 style="color:#f87171;">Forgotten subscriptions</h3>
+            <p>Components drift out of sync. Bugs that only show up in specific click orders.</p>
+          </div>
+          <div class="card fragment">
+            <h3 style="color:#f87171;">Imperative updates</h3>
+            <p>You spend more time orchestrating "who tells whom" than writing logic.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          <p>Every dev who has built a non-trivial form has lived this.</p>
+          <p>The video calls it a "notepad to keep track of what updates what".</p>
+          <p>That's exactly the problem reactive systems were designed to kill.</p>
+        </aside>
+      </section>
+
+      <!-- =========================================================== -->
+      <!-- PART 1: WHY SIGNALS?                                        -->
+      <!-- =========================================================== -->
+
+      <!-- SLIDE 3: Part 1 Divider -->
+      <section class="section-divider">
+        <span class="section-number">1</span>
+        <h2>Why <span class="gradient-text">signals</span>?</h2>
+        <aside class="notes">
+          <p>The frontend world has spent 15 years answering this question.</p>
+          <p>Let's recap quickly because Vaadin inherits all of that thinking.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 4: Imperative vs Reactive -->
+      <section>
+        <h2>Imperative <span class="gradient-text">vs</span> Reactive</h2>
+        <div class="before-after">
+          <div class="ba-bad">
+            <h3>Imperative: "tell each thing"</h3>
+            <pre><code class="language-javascript" data-trim>
+nameInput.on('input', e =&gt; {
+  greeting.text = 'Hello ' + e.value;
+  saveBtn.enabled = e.value.length &gt; 0;
+  status.text = `${e.value.length} chars`;
+});
+            </code></pre>
+          </div>
+          <div class="ba-good">
+            <h3>Reactive: "describe relationships"</h3>
+            <pre><code class="language-javascript" data-trim>
+const name = signal('');
+const greeting = computed(() =&gt; 'Hello ' + name.value);
+const canSave  = computed(() =&gt; name.value.length &gt; 0);
+const status   = computed(() =&gt; `${name.value.length} chars`);
+            </code></pre>
+          </div>
+        </div>
+        <p class="caption fragment">
+          Same behaviour.<br/>
+          The reactive version doesn't tell anyone anything: it just declares dependencies.
+        </p>
+        <aside class="notes">
+          <p>The imperative version works, but each new field doubles the listener wiring.</p>
+          <p>The reactive version doesn't grow that way: each piece of state declares what it depends on.</p>
+          <p>The framework figures out the update order.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 5: Push vs Pull -->
+      <section>
+        <h2>Push, Pull, <span class="gradient-text">Push-Pull</span></h2>
+        <div class="three-cards">
+          <div class="card">
+            <h3 style="color: #f87171;">Pull<br/><span style="font-size: 0.7em;">(React, Preact, Vue 2)</span></h3>
+            <p>Something changed somewhere. Rerender the whole subtree and diff.
+            Coarse. Works. Wastes CPU.</p>
+          </div>
+          <div class="card">
+            <h3 style="color: #fbbf24;">Push<br/><span style="font-size: 0.7em;">(Knockout)</span></h3>
+            <p>Tell every observer immediately. Fast but can update the same thing
+            multiple times in one tick.</p>
+          </div>
+          <div class="card">
+            <h3 style="color: #34d399;">Push-Pull<br/><span style="font-size: 0.7em;">(Signals)</span></h3>
+            <p>Mark dirty on write (push), recompute only what's read (pull).
+            Fine-grained. Glitch-free.</p>
+          </div>
+        </div>
+        <p class="caption fragment">
+          Signals are not new: they are the model that finally made fine-grained reactivity simple.
+        </p>
+        <aside class="notes">
+          <p>Three models.</p>
+          <p>Pull is React: rerender and diff.</p>
+          <p>Push is Knockout-style observables: any change fires every subscriber.</p>
+          <p>Push-pull is what SolidJS popularised and Preact/Angular/Vaadin all adopted. Best of both worlds.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 6: Timeline / Lineage -->
+      <section>
+        <h2>A 15-year <span class="gradient-text">overnight success</span></h2>
+        <div class="timeline">
+          <div class="tl-item fragment">
+            <span class="tl-year">2010</span>
+            <span class="tl-name">Knockout</span>
+            <span class="tl-note">observables</span>
+          </div>
+          <div class="tl-item fragment">
+            <span class="tl-year">2018</span>
+            <span class="tl-name">SolidJS</span>
+            <span class="tl-note">fine-grained reactivity</span>
+          </div>
+          <div class="tl-item fragment">
+            <span class="tl-year">2020</span>
+            <span class="tl-name">Vue 3</span>
+            <span class="tl-note"><code>ref</code> &amp; <code>computed</code></span>
+          </div>
+          <div class="tl-item fragment">
+            <span class="tl-year">2022</span>
+            <span class="tl-name">@preact/signals</span>
+            <span class="tl-note">standalone library</span>
+          </div>
+          <div class="tl-item fragment">
+            <span class="tl-year">2023</span>
+            <span class="tl-name">Angular</span>
+            <span class="tl-note">signal API</span>
+          </div>
+          <div class="tl-item fragment">
+            <span class="tl-year">2024</span>
+            <span class="tl-name">TC39 (ECMA)</span>
+            <span class="tl-note">proposal &middot; stage 1/4</span>
+          </div>
+          <div class="tl-item fragment" style="border-color: rgba(0,210,255,0.5); background: rgba(0,210,255,0.06);">
+            <span class="tl-year">2025</span>
+            <span class="tl-name">Vaadin 25.1</span>
+            <span class="tl-note">on the JVM</span>
+          </div>
+        </div>
+        <p class="caption fragment">
+          Signals are now backed by authors from Angular, Solid, Vue, Svelte, Preact and Qwik.
+        </p>
+        <aside class="notes">
+          <p>The signal idea is older than React. It went dormant during the virtual-DOM era and came back stronger.</p>
+          <p>TC39 is the ECMA committee that defines the official JavaScript standard.</p>
+          <p>Proposals go through 4 stages: 1 (idea accepted), 2 (draft), 3 (spec ready), 4 (in the language).</p>
+          <p>Signals reaching stage 1 in 2024 means industry consensus: the proposal is backed by authors from Angular, Solid, Vue, Svelte, Preact and Qwik.</p>
+          <p>Vaadin 25.1 brings it to Java, and its API is aligned with that proposal.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 7: Key quote -->
+      <section>
+        <blockquote style="font-size: 1em; margin: 0 auto;">
+          &middot; Signals provide a language to describe state synchronization independent of any side effect.
+        </blockquote>
+        <p style="font-size: 0.55em; color: #8899aa; margin-top: 1em;">: TC39 Signals proposal
+        </p>
+        <aside class="notes">
+          <p>This is the key insight.</p>
+          <p>Signals separate WHAT depends on what from WHEN and HOW to update.</p>
+          <p>The framework owns the WHEN. You only describe the WHAT.</p>
+        </aside>
+      </section>
+
+      <!-- =========================================================== -->
+      <!-- PART 2: THREE PRIMITIVES                                    -->
+      <!-- =========================================================== -->
+
+      <!-- SLIDE 8: Part 2 Divider -->
+      <section class="section-divider">
+        <span class="section-number">2</span>
+        <h2>Three <span class="gradient-text">primitives</span></h2>
+        <p style="font-size: 0.6em; color: #8899aa; margin-top: 0.6em;">
+          <span class="prim-badge prim-signal">signal</span>
+          &nbsp;
+          <span class="prim-badge prim-computed">computed</span>
+          &nbsp;
+          <span class="prim-badge prim-effect">effect</span>
+        </p>
+        <aside class="notes">
+          <p>Three building blocks. That's it.</p>
+          <p>Signal, computed, effect.</p>
+          <p>Every signals library is some flavour of these three.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 9: signal -->
+      <section>
+        <h2><span class="prim-badge prim-signal">signal</span>: a reactive value</h2>
+        <div class="two-columns" style="margin-top: 0.5em;">
+          <div>
+            <h3 style="font-size: 0.55em; color: #fbbf24;">Preact / JS</h3>
+            <pre><code class="language-javascript" data-trim>
+import { signal } from '@preact/signals';
+
+const count = signal(0);
+
+console.log(count.value);  // read
+count.value = 1;           // write
+            </code></pre>
+          </div>
+          <div>
+            <h3 style="font-size: 0.55em; color: #34d399;">Vaadin / Java</h3>
+            <pre><code class="language-java" data-trim>
+import com.vaadin.signals.ValueSignal;
+
+ValueSignal&lt;Integer&gt; count = new ValueSignal&lt;&gt;(0);
+
+count.value();      // read
+count.value(1);     // write
+            </code></pre>
+          </div>
+        </div>
+        <p class="caption fragment">
+          One reactive cell.<br/>
+          Read it, write it, subscribe to changes.
+        </p>
+        <aside class="notes">
+          <p>A signal is a box around a value.</p>
+          <p>The box notifies anyone listening when the value changes.</p>
+          <p>That's the whole API surface for the first primitive.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 10: computed -->
+      <section>
+        <h2><span class="prim-badge prim-computed">computed</span>: derived state</h2>
+        <div class="two-columns" style="margin-top: 0.5em;">
+          <div>
+            <h3 style="font-size: 0.55em; color: #fbbf24;">Preact / JS</h3>
+            <pre><code class="language-javascript" data-trim>
+const first = signal('Ada');
+const last  = signal('Lovelace');
+
+const full = computed(() =&gt;
+  first.value + ' ' + last.value
+);
+            </code></pre>
+          </div>
+          <div>
+            <h3 style="font-size: 0.55em; color: #34d399;">Vaadin / Java</h3>
+            <pre><code class="language-java" data-trim>
+ValueSignal&lt;String&gt; first = new ValueSignal&lt;&gt;("Ada");
+ValueSignal&lt;String&gt; last  = new ValueSignal&lt;&gt;("Lovelace");
+
+Signal&lt;String&gt; full = Signal.computed(() -&gt;
+  first.value() + " " + last.value()
+);
+            </code></pre>
+          </div>
+        </div>
+        <p class="caption fragment">
+          Like an <strong>Excel formula</strong>: recalculates only when its inputs change.<br/>
+          Lazy.<br/>
+          Cached.
+        </p>
+        <aside class="notes">
+          <p>Computed is the Excel formula.</p>
+          <p>It tracks which signals it reads, and re-evaluates only when those change.</p>
+          <p>And only when someone actually asks for its value.</p>
+          <p>Lazy and memoised.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 11: effect -->
+      <section>
+        <h2><span class="prim-badge prim-effect">effect</span>: the outside world</h2>
+        <div class="two-columns" style="margin-top: 0.5em;">
+          <div>
+            <h3 style="font-size: 0.55em; color: #fbbf24;">Preact / JS</h3>
+            <pre><code class="language-javascript" data-trim>
+effect(() =&gt; {
+  document.title =
+    `Hello ${full.value}`;
+});
+            </code></pre>
+          </div>
+          <div>
+            <h3 style="font-size: 0.55em; color: #34d399;">Vaadin / Java</h3>
+            <pre><code class="language-java" data-trim>
+Signal.effect(() -&gt; {
+  log.info("Name is now {}",
+    full.value());
+});
+            </code></pre>
+          </div>
+        </div>
+        <p class="caption fragment">
+          The bridge from reactive data to the imperative world: DOM, logs, network, the UI.
+        </p>
+        <aside class="notes">
+          <p>Effects are where reactivity meets reality.</p>
+          <p>You read signals, you do a side effect (update the DOM, call an API, log).</p>
+          <p>When any signal you read changes, the effect re-runs.</p>
+          <p>Vaadin scopes effects to the component lifecycle automatically.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 12: Interactive iframe -->
+      <section>
+        <h2>Three primitives, <span class="gradient-text">one flow</span></h2>
+        <iframe src="extras/signals-pipeline.html"
+                style="width:100%; height:520px; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:#0f172a;">
+        </iframe>
+        <aside class="notes">
+          <p>Walk through the steps with the Next button.</p>
+          <p>Show signal -&gt; computed -&gt; effect once, then click the increment and watch the packet propagate.</p>
+          <p>Last step: glitch-free guarantee.</p>
+          <p>Emphasise: one push, each subscriber runs once.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 13: Glitch-free -->
+      <section>
+        <h2>Glitch-free, <span class="gradient-text">guaranteed</span></h2>
+        <div style="margin: 0.8em auto; max-width: 700px;">
+          <pre><code class="language-javascript" data-trim>
+const a = signal(1);
+const b = computed(() =&gt; a.value * 2);    // depends on a
+const c = computed(() =&gt; a.value + b.value); // depends on a AND b
+
+effect(() =&gt; render(c.value));    // runs ONCE per change to a
+          </code></pre>
+        </div>
+        <div class="three-cards" style="margin-top: 0.5em;">
+          <div class="card fragment">
+            <h3 style="color: #f87171;">Classic observable</h3>
+            <p><code>a</code> changes &rarr; effect runs <strong>twice</strong>:<br/>
+            once via <code>a</code>, once via <code>b</code>.</p>
+          </div>
+          <div class="card fragment">
+            <h3 style="color: #34d399;">Signals</h3>
+            <p>Effect runs <strong>exactly once</strong>.<br/>The framework topologically sorts the dependency graph.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          <p>This is what "glitch-free" means and why naive observable libraries get it wrong.</p>
+          <p>When 'a' changes, 'b' and 'c' both depend on it. A naive system would fire the effect twice.</p>
+          <p>Signals run it once, with the correct final value.</p>
+          <p>This matters at scale.</p>
+        </aside>
+      </section>
+
+      <!-- =========================================================== -->
+      <!-- PART 3: VAADIN'S TWIST                                      -->
+      <!-- =========================================================== -->
+
+      <!-- SLIDE 14: Part 3 Divider -->
+      <section class="section-divider">
+        <span class="section-number">3</span>
+        <h2>Vaadin's <span class="gradient-text">solution</span></h2>
+        <p style="font-size: 0.6em; color: #8899aa; margin-top: 0.6em;">
+          Same model. Server-side. Multi-user.
+        </p>
+        <aside class="notes">
+          <p>Everything we've seen so far runs in the browser.</p>
+          <p>Vaadin's contribution: put the same primitives on the JVM, and let them sync across users automatically.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 15: What's different -->
+      <section>
+        <h2>Signals, <span class="gradient-text">but on the JVM</span></h2>
+        <div class="three-cards" style="margin-top: 0.6em;">
+          <div class="card fragment">
+            <h3>Thread-safe</h3>
+            <p>Reads and writes are atomic. Background tasks, REST callbacks, scheduled jobs: all safe.</p>
+          </div>
+          <div class="card fragment">
+            <h3>Shared by default</h3>
+            <p>One <code>ListSignal&lt;Order&gt;</code> on the server can drive every connected browser session.</p>
+          </div>
+          <div class="card fragment">
+            <h3>Transactional</h3>
+            <p>Multiple writes in one block: subscribers see the final state, not the intermediate flicker.</p>
+          </div>
+        </div>
+        <aside class="notes">
+          <p>Three things JS signals don't give you.</p>
+          <p>Threads, sharing across users, and atomic batches.</p>
+          <p>That's what makes signals on the JVM more than just a port.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 16: Hello world -->
+      <section>
+        <h2>Hello world with <span class="gradient-text">Vaadin Signals</span></h2>
+        <div class="before-after">
+          <div class="ba-bad">
+            <h3>Classic Flow</h3>
+            <pre><code class="language-java" data-trim data-noescape>
+@Route("hello")
+public class HelloView extends VerticalLayout {
+
+    public HelloView() {
+        TextField input = new TextField("Your name");
+        Span greeting = new Span("Type your name...");
+
+        input.setValueChangeMode(ValueChangeMode.EAGER);
+        input.addValueChangeListener(e -&gt; {
+            String v = e.getValue();
+            greeting.setText(v.isEmpty()
+                ? "Type your name..."
+                : "Hello, " + v + "!");
+        });
+
+        add(input, greeting);
+    }
+}
+            </code></pre>
+          </div>
+          <div class="ba-good">
+            <h3>With Vaadin Signals</h3>
+            <pre><code class="language-java" data-trim data-noescape>
+@Route("hello")
+public class HelloView extends VerticalLayout {
+
+    public HelloView() {
+        var name = new ValueSignal&lt;&gt;("");
+
+        add(new TextField("Your name", name));
+
+        add(new Span(Signal.computed(() -&gt;
+            name.value().isEmpty()
+                ? "Type your name..."
+                : "Hello, " + name.value() + "!")));
+    }
+}
+            </code></pre>
+          </div>
+        </div>
+        <p class="caption fragment">
+          No listeners.<br/>
+          No <code>addValueChangeListener</code>.<br/>
+          The Span re-renders itself.
+        </p>
+        <aside class="notes">
+          <p>A full Vaadin hello-world with signals.</p>
+          <p>Notice: no addValueChangeListener anywhere.</p>
+          <p>The bindText call creates a subscription automatically and tears it down when the component is detached.</p>
+          <p>That's the whole pitch.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 17: Bindings API -->
+      <section>
+        <h2>The <span class="gradient-text">binding API</span></h2>
+        <div class="dx-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 0.6em;">
+          <div class="dx-card">
+            <strong>component.bindValue(signal, signal::set)</strong>
+            <span>Two-way bind a field's value to a signal.</span>
+          </div>
+          <div class="dx-card">
+            <strong>component.bindText(signal)</strong>
+            <span>Set <code>textContent</code> from a signal or computed.</span>
+          </div>
+          <div class="dx-card">
+            <strong>component.bindVisible(signal)</strong>
+            <span>Show or hide based on a boolean signal.</span>
+          </div>
+          <div class="dx-card">
+            <strong>component.bindEnabled(signal)</strong>
+            <span>Enable or disable from a boolean signal.</span>
+          </div>
+          <div class="dx-card">
+            <strong>grid.bindItems(listSignal)</strong>
+            <span>Grid rows track a <code>ListSignal&lt;T&gt;</code> automatically.</span>
+          </div>
+          <div class="dx-card">
+            <strong>Signal.effect(...)</strong>
+            <span>Scoped to the current component. Cleaned up on detach.</span>
+          </div>
+        </div>
+        <aside class="notes">
+          <p>The binding API is the high-level facade.</p>
+          <p>Most of the time you'll never write a raw effect: you'll bind a component property to a signal and Vaadin handles the rest.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 18: Multi-user dashboard -->
+      <section>
+        <h2>One signal, <span class="gradient-text">every user</span></h2>
+        <div class="multi-user">
+          <div style="display: flex; flex-direction: column; gap: 0.5em;">
+            <div class="mu-browser">User 1</div>
+            <div class="mu-browser">User 2</div>
+            <div class="mu-browser">User 3</div>
+          </div>
+          <span class="mu-arrow">&harr;</span>
+          <div class="mu-server">
+            <div style="font-size: 0.9em; color: #fbbf24;">SHARED</div>
+            <div style="margin-top: 0.4em;">ListSignal&lt;Order&gt;</div>
+            <div style="font-size: 0.7em; opacity: 0.7; margin-top: 0.3em;">on the JVM</div>
+          </div>
+        </div>
+        <pre style="margin-top: 0.4em;"><code class="language-java" data-trim>
+// Shared application-scope signal
+@Component
+class OrderRegistry {
+    final ListSignal&lt;Order&gt; orders = new ListSignal&lt;&gt;();
+}
+
+// Every view that binds to this list sees the same data, live.
+grid.bindItems(orderRegistry.orders);
+        </code></pre>
+        <p class="caption fragment">
+          A new <code>Order</code> from <em>any</em> browser updates the <code>Grid</code> in <em>every</em> connected session.
+        </p>
+        <aside class="notes">
+          <p>This is the killer demo.</p>
+          <p>One ListSignal on the server. Three distinct users, each in their own browser, see the same data live.</p>
+          <p>No WebSocket code, no event bus, no Redis pub-sub. The framework handles propagation.</p>
+          <p>Try doing this with React + REST. You'd need a backend pub-sub, a WS endpoint, optimistic updates...</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 19: Before / After -->
+      <section>
+        <h2>Before <span class="gradient-text">&amp; after</span></h2>
+        <div class="before-after">
+          <div class="ba-bad">
+            <h3>Listeners (~26 LOC)</h3>
+            <pre><code class="language-java" data-trim>
+@Route("signup")
+public class SignupView extends VerticalLayout {
+
+  public SignupView() {
+    TextField name  = new TextField("Name");
+    TextField email = new TextField("Email");
+    Span status = new Span();
+
+    name.addValueChangeListener(e -&gt;
+      recalcStatus(name, email, status));
+    email.addValueChangeListener(e -&gt;
+      recalcStatus(name, email, status));
+
+    add(name, email, status);
+  }
+
+  void recalcStatus(TextField name, TextField email, Span status) {
+    if (name.isEmpty()) {
+      status.setText("Name?");
+    } else if (email.isEmpty()) {
+      status.setText("Email?");
+    } else {
+      status.setText("Looks good");
+    }
+  }
+}
+            </code></pre>
+          </div>
+          <div class="ba-good">
+            <h3>With signals (~15 LOC)</h3>
+            <pre><code class="language-java" data-trim>
+@Route("signup")
+public class SignupView extends VerticalLayout {
+
+  public SignupView() {
+    var name  = new ValueSignal&lt;&gt;("");
+    var email = new ValueSignal&lt;&gt;("");
+
+    add(new TextField("Name", name));
+    add(new TextField("Email", email));
+
+    add(new Span(Signal.computed(() -&gt;
+      name.value().isEmpty()  ? "Name?"  :
+      email.value().isEmpty() ? "Email?" :
+                                "Looks good")));
+  }
+}
+            </code></pre>
+          </div>
+        </div>
+        <aside class="notes">
+          <p>Same feature. 75% less code.</p>
+          <p>And the "after" version has no risk of forgetting a listener, no risk of stale state.</p>
+          <p>The dependency graph is described, not orchestrated.</p>
+        </aside>
+      </section>
+
+      <!-- =========================================================== -->
+      <!-- PART 4: SEE IT IN ACTION                                    -->
+      <!-- =========================================================== -->
+
+      <!-- SLIDE 20: Embedded video -->
+      <section class="video-slide">
+        <span class="section-number">4</span>
+        <h2><span class="gradient-text">Video</span></h2>
+        <div class="video-wrap">
+          <video controls preload="metadata"
+                 poster="images/signals-video-frame-2.png">
+            <source src="video/vaadin-signals-en.webm" type="video/webm">
+            <source src="video/vaadin-signals-es.mp4" type="video/mp4">
+            Your browser doesn't support embedded video.
+          </video>
+        </div>
+        <p class="caption">
+          "Building reactive UIs in Java web apps with Vaadin signals": 1m53s
+        </p>
+        <aside class="notes">
+          <p>Play the video.</p>
+          <p>The Spanish dub is the second source: remove the English source above it if you want the Spanish version to play by default.</p>
+          <p>After the video, ask: who would use this on Monday? What pattern in your current codebase does this kill?</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 23: Get started -->
+      <section>
+        <h2>Get <span class="gradient-text">started</span></h2>
+        <div style="margin-top: 0.5em;">
+          <pre><code class="language-xml" data-trim>
+&lt;!-- pom.xml --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;com.vaadin&lt;/groupId&gt;
+  &lt;artifactId&gt;vaadin&lt;/artifactId&gt;
+  &lt;version&gt;25.1.0&lt;/version&gt;
+&lt;/dependency&gt;
+          </code></pre>
+        </div>
+        <div style="margin-top: 0.5em;">
+          <pre><code class="language-java" data-trim>
+import com.vaadin.signals.*;
+
+ValueSignal&lt;String&gt; greeting = new ValueSignal&lt;&gt;("Hello, world");
+span.bindText(greeting);
+          </code></pre>
+        </div>
+        <div style="margin-top: 0.8em; font-size: 0.55em; color: #8899aa;">
+          <p>
+            <!-- <a href="extras/think-signals.pdf" target="_blank">📄 Think in Signals (PDF)</a> -->
+          </p>
+          <p style="margin-top: 0.4em;">
+            <a href="https://vaadin.com/docs/latest/flow/advanced/signals">vaadin.com/docs &middot; signals</a>
+            &middot;
+            <a href="https://tc39.es/proposal-signals/">tc39.es/proposal-signals</a>
+            &middot;
+            <a href="https://preactjs.com/guide/v10/signals/">preactjs.com/signals</a>
+          </p>
+        </div>
+        <aside class="notes">
+          <p>Three lines: add the dependency, create a signal, bind it to a component.</p>
+          <p>Show the docs link.</p>
+          <p>Mention the TC39 link for context: the same model is heading into the JS standard library.</p>
+        </aside>
+      </section>
+
+      <!-- SLIDE 24: Thank you -->
+      <section data-background-image="images/background-code.png"
+               data-background-opacity="0.05"
+               data-background-size="cover">
+        <h2 style="font-size: 1.2em;"><span class="gradient-text">Signals</span></h2>
+        <blockquote style="font-size: 0.9em; margin: 0.8em auto;">
+          &middot; Write <em>what</em> you want.<br/>
+          &middot; Not <em>how</em> to keep things in sync.
+        </blockquote>
+        <p style="font-size: 0.5em; color: #555; margin-top: 1.5em;">
+          Questions?
+        </p>
+        <aside class="notes">
+          <p>That's the whole talk in one line.</p>
+          <p>Open the floor.</p>
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      plugins: [RevealHighlight, RevealNotes],
+      slideNumber: true,
+      center: true,
+      controlsLayout: 'edges',
+      keyboard: {
+        48: function() { Reveal.slide(0); },   // 0: title
+        49: function() { Reveal.slide(2); },    // 1: part 1
+        50: function() { Reveal.slide(7); },    // 2: part 2
+        51: function() { Reveal.slide(13); },   // 3: part 3
+        52: function() { Reveal.slide(19); }    // 4: part 4
+      }
+    });
+
+    // Talk progress bar (0-indexed slide numbers)
+    function updateTalkProgress(slideIndex) {
+      var part = 0;
+      // Slides 0-1 opening | 2-6 Part 1 | 7-12 Part 2 | 13-18 Part 3 | 19-22 Part 4 | 23 closing
+      if (slideIndex >= 2 && slideIndex <= 6) part = 1;
+      else if (slideIndex >= 7 && slideIndex <= 12) part = 2;
+      else if (slideIndex >= 13 && slideIndex <= 18) part = 3;
+      else if (slideIndex === 19) part = 4;
+      // slides 20+ (closing): part = 0, bar visible but empty like at the start
+
+      var bar = document.getElementById('talk-progress');
+      bar.style.opacity = slideIndex === 0 ? '0' : '1';
+
+      var items = bar.querySelectorAll('.tp-seg');
+      items.forEach(function(item) {
+        var p = parseInt(item.getAttribute('data-part'));
+        item.classList.toggle('lit', part > 0 && p <= part);
+        item.classList.toggle('current', part > 0 && p === part);
+      });
+
+      var ends = [0, 35, 65, 90, 100];
+      var pct = ends[Math.min(part, 4)];
+      bar.style.background = part > 0
+        ? 'linear-gradient(to right, rgba(0,210,255,0) 0%, rgba(0,210,255,0.18) ' + pct + '%, transparent ' + pct + '%)'
+        : 'none';
+    }
+
+    Reveal.on('slidechanged', function(event) {
+      updateTalkProgress(Reveal.getIndices().h);
+      // Pause any video that's not on the current slide
+      document.querySelectorAll('video').forEach(function(v) {
+        if (!event.currentSlide.contains(v)) v.pause();
+      });
+    });
+    Reveal.on('ready', function() {
+      updateTalkProgress(Reveal.getIndices().h);
+    });
+  </script>
+</body>
+</html>
